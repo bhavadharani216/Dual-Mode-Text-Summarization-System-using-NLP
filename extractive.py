@@ -1,11 +1,11 @@
 import nltk
+import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from nltk.tokenize import sent_tokenize
 
-# Download tokenizer (only first time)
 nltk.download('punkt')
 
-def extractive_summary(text, num_sentences=3):
+def extractive_summary(text, num_sentences=4):
     sentences = sent_tokenize(text)
 
     if len(sentences) == 0:
@@ -14,24 +14,19 @@ def extractive_summary(text, num_sentences=3):
     vectorizer = TfidfVectorizer(stop_words='english')
     tfidf_matrix = vectorizer.fit_transform(sentences)
 
-    scores = tfidf_matrix.sum(axis=1)
+    # TF-IDF score
+    tfidf_scores = np.array(tfidf_matrix.sum(axis=1)).flatten()
 
-    # Create list of (index, score)
-    sentence_scores = [
-        (i, scores[i, 0])
-        for i in range(len(sentences))
-    ]
+    # Add position score (early sentences get slight boost)
+    position_scores = np.linspace(1, 0.5, len(sentences))
 
-    # Sort by score descending
-    ranked = sorted(sentence_scores, key=lambda x: x[1], reverse=True)
+    # Combine scores
+    final_scores = tfidf_scores + position_scores
 
-    # Pick top N sentence indices
-    top_indices = sorted(
-        [ranked[i][0] for i in range(min(num_sentences, len(ranked)))]
-    )
+    ranked_indices = np.argsort(final_scores)[::-1]
 
-    # Join sentences in original order
+    top_indices = sorted(ranked_indices[:num_sentences])
+
     summary = " ".join([sentences[i] for i in top_indices])
 
     return summary
-
