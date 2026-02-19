@@ -1,32 +1,40 @@
 import nltk
 import numpy as np
+import networkx as nx
 from sklearn.feature_extraction.text import TfidfVectorizer
 from nltk.tokenize import sent_tokenize
+from sklearn.metrics.pairwise import cosine_similarity
 
 nltk.download('punkt')
 
-def extractive_summary(text, num_sentences=4):
+def extractive_summary(text, num_sentences=5):
     sentences = sent_tokenize(text)
 
     if len(sentences) == 0:
         return ""
 
+    # Convert sentences to TF-IDF vectors
     vectorizer = TfidfVectorizer(stop_words='english')
     tfidf_matrix = vectorizer.fit_transform(sentences)
 
-    # TF-IDF score
-    tfidf_scores = np.array(tfidf_matrix.sum(axis=1)).flatten()
+    # Compute cosine similarity matrix
+    similarity_matrix = cosine_similarity(tfidf_matrix)
 
-    # Add position score (early sentences get slight boost)
-    position_scores = np.linspace(1, 0.5, len(sentences))
+    # Create graph
+    nx_graph = nx.from_numpy_array(similarity_matrix)
 
-    # Combine scores
-    final_scores = tfidf_scores + position_scores
+    # Apply PageRank (TextRank)
+    scores = nx.pagerank(nx_graph)
 
-    ranked_indices = np.argsort(final_scores)[::-1]
+    # Rank sentences
+    ranked_sentences = sorted(
+        ((scores[i], s, i) for i, s in enumerate(sentences)),
+        reverse=True
+    )
 
-    top_indices = sorted(ranked_indices[:num_sentences])
+    # Select top N
+    selected = sorted(ranked_sentences[:num_sentences], key=lambda x: x[2])
 
-    summary = " ".join([sentences[i] for i in top_indices])
+    summary = " ".join([s[1] for s in selected])
 
     return summary

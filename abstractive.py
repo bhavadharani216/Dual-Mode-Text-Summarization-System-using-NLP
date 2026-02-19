@@ -1,21 +1,28 @@
 from transformers import pipeline
 
-# Load smaller but high-quality model
 summarizer = pipeline(
     "summarization",
     model="sshleifer/distilbart-cnn-12-6"
 )
 
+def chunk_text(text, max_chunk=1000):
+    chunks = []
+    for i in range(0, len(text), max_chunk):
+        chunks.append(text[i:i + max_chunk])
+    return chunks
+
 def abstractive_summary(text):
 
-    # Limit input size for efficiency
-    text = text[:1500]
+    chunks = chunk_text(text)
+    final_summary = ""
 
-    result = summarizer(
-        text,
-        max_length=180,
-        min_length=60,
-        do_sample=False
-    )
+    for chunk in chunks:
+        result = summarizer(
+            chunk,
+            max_length=150,
+            min_length=50,
+            do_sample=False
+        )
+        final_summary += result[0]['summary_text'] + " "
 
-    return result[0]['summary_text']
+    return final_summary.strip()
